@@ -1,0 +1,27 @@
+{
+  "name": "warc-get",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "start": "npm run build && node index.js"
+  },
+  "author": "Mantaroh Yoshinaga",
+  "license": "MIT",
+  "dependencies": {
+    "http-string-parser": "^0.0.6",
+    "n-readlines": "^1.0.1",
+    "node-gzip": "^1.1.2",
+    "node-html-parser": "^6.1.5",
+    "typescript": "^5.0.4"
+  },
+  "devDependencies": {
+    "@types/http-string-parser": "^0.0.30",
+    "@types/n-readlines": "^1.0.3",
+    "@types/node": "^20.2.5",
+    "@types/node-gzip": "^1.1.0"
+  }
+}
