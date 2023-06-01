@@ -1,14 +1,16 @@
+import fs from 'fs';
 import gzip from 'node-gzip';
 import lineByLine from 'n-readlines';
 import parser from 'http-string-parser';
 import { parse as HtmlParse } from 'node-html-parser';
+import puppeteer from 'puppeteer';
 import type { HTMLElement } from 'node-html-parser';
 
 const BASE_URL   = "https://ds5q9oxwqwsfj.cloudfront.net";
 
 type WARCData = {
-    request: parser.ParseRequestResult | {},
-    response: parser.ParseResponseResult | {},
+    request: parser.ParseRequestResult | null,
+    response: parser.ParseResponseResult | null,
     html: HTMLElement,
 }    
 
@@ -46,8 +48,8 @@ async function getWARCData(filePath: string, offset: number, length: number): Pr
         console.error(error.message);
         // 例外時は処理を続けるために空のデータを返す
         return {
-            request: {},
-            response: {},
+            request: null,
+            response: null,
             html: HtmlParse(''),
         };
     }
@@ -67,12 +69,13 @@ async function getWARCData(filePath: string, offset: number, length: number): Pr
     // console.log('----- html -----')
     // console.log(warcData.html);
 
+    const browser = await puppeteer.launch({
+        headless: 'new',
+    });
     try {
         const liner = new lineByLine('./sample.data');
         let line: false | Buffer;
-        let count = 0;
         while (line = liner.next()) {
-            console.log('**************************s')
             // 最初はインデックス用の TLD とパス名、日付が来るので、それ以降の JSON だけを取得する
             // データ例: jp,0-00)/dobutsubiyori 20230331150048 {"url":..... }
             const data = line.toString('utf8').substring(line.toString('utf8').indexOf('{'));
@@ -80,21 +83,24 @@ async function getWARCData(filePath: string, offset: number, length: number): Pr
             console.log(json);
 
             const warcData = await getWARCData(json.filename, parseInt(json.offset), parseInt(json.length));
-            console.log('----- request -----')
-            console.log(warcData.request);
-            console.log('----- response -----')
-            console.log(warcData.response);
-            console.log('----- html -----')
-            console.log(warcData.html);
 
-            console.log('**************************e')
+            // Load content if response has body.
+            if (warcData.response?.body) {
+                // Load content to puppeteer (chromium)
+                const page = await browser.newPage();
+                await page.setViewport({width: 1920, height: 1081});
+                await page.setContent(warcData.response?.body);
+                await page.screenshot({ path: `screen/${json.url.replaceAll('/', '-').replaceAll(':', '-')}.png` });
+                await page.close();
 
-            // TODO: Sample code. Remove it.
-            count++;
-            if (count >= 1) break;
+                // Save content to file
+                fs.writeFileSync(`screen/${json.url.replaceAll('/', '-').replaceAll(':', '-')}.html`, warcData.response?.body);
+            }
         }
     } catch (error: Error | any) {
         console.error(error.message);
         process.exit(1);
+    } finally {
+        await browser.close();
     }
 })();
