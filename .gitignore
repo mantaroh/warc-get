@@ -2,3 +2,5 @@ node_modules
 index.js
 screen/*.png
 screen/*.html
+temp/*.png
+temp/*.html
