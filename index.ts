@@ -7,6 +7,7 @@ import { parse as HtmlParse } from 'node-html-parser';
 import puppeteer from 'puppeteer';
 import { setTimeout } from 'timers/promises';
 import type { HTMLElement } from 'node-html-parser';
+import { compileFunction } from 'vm';
 
 const BASE_URL   = "https://ds5q9oxwqwsfj.cloudfront.net";
 
@@ -116,21 +117,46 @@ async function getWARCData(filePath: string, offset: number, length: number): Pr
                     const page = await browser.newPage();
                     await page.setViewport({width: 1920, height: 1081});
                     await page.setContent(warcData.response?.body);
-                    await page.screenshot({ path: `screen/${hashFileName}.png` });
-                    const metaElems = await page.evaluate(() => {
-                        const elem = document.querySelector('meta[name="description"]');
-                        const ogp = document.querySelector('meta[property="og:description"]');
-                        return elem?.getAttribute('content') || ogp?.getAttribute('content') || '';
-                    }, []);
+
+                    // Inject Getting component script
+                    await page.addScriptTag({path: 'injection.js'});
+                    // await page.screenshot({ path: `screen/${hashFileName}.png` });
+                    const componentPaths = await page.evaluate(() => {
+                        // @ts-ignore
+                        const elems = captureElement(document.body);
+                        return elems;
+                    });
+                    console.log(componentPaths);
+                    // get screenshot of each component into components directory.
+                    for (const path of componentPaths) {
+                        if (path === "" ) continue;
+                        const element = await page.$(path);
+                        if (element) {
+                            try {
+                                console.log(`getting element screen shot [${path}]`);
+                                const componentFileName = `${hashFileName}-${path.replaceAll('#', '-').replaceAll('.', '-').replaceAll(' ', '').replaceAll('>', '-').replaceAll(':', '-')}.png`;
+                                console.log(`component file name: ${componentFileName}`);
+                                await element.screenshot({ path: `components/${componentFileName}` });
+                            } catch (error: Error | any) {
+                                console.error(error.message);
+                            }
+                        }
+                    }
+
+                    // const metaElems = await page.evaluate(() => {
+                    //     const elem = document.querySelector('meta[name="description"]');
+                    //     const ogp = document.querySelector('meta[property="og:description"]');
+                    //     return elem?.getAttribute('content') || ogp?.getAttribute('content') || '';
+                    // }, []);
                     await page.close();
 
-                    // Save content to file
-                    fs.writeFileSync(`screen/${hashFileName}`, warcData.response?.body);
+                    // // Save content to file
+                    // fs.writeFileSync(`screen/${hashFileName}`, warcData.response?.body);
 
-                    // Save meta file index.
-                    if (metaElems && metaElems.length > 0) {
-                        fs.appendFileSync(outputFile, `${json.url},${metaElems}\n`);
-                    }
+                    // // Save meta file index.
+                    // if (metaElems && metaElems.length > 0) {
+                    //     fs.appendFileSync(outputFile, `${json.url},${metaElems}\n`);
+                    // }
 
                     // Timeout 300 ms
                     await setTimeout(300);
