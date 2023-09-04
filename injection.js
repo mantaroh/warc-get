@@ -1,5 +1,5 @@
-const WIDTH = 200;
-const HEIGHT = 100;
+const WIDTH = 300;
+const HEIGHT = 300;
 const IGNORE_ELEMENT = [
     'H1',
     'H2',
@@ -7,7 +7,6 @@ const IGNORE_ELEMENT = [
     'H4',
     'H5',
     'H6',
-    'P',
     'SPAN',
     'A',
     'IMG',
@@ -22,7 +21,7 @@ const DEBUG = true;
 function captureElement(elem) {
     const elems = [];
     if (elem.children.length > 0) {
-        if (isAllChildElementSmallerThanSize(elem, { width: WIDTH, height: HEIGHT })) {
+        if (isAllChildElementSmallerThanSize(elem)) {
             // All children are smaller than 200x200, so we can choose this element as a copmponent.
             if (DEBUG) {
                 console.log(`target element's children are all smaller than ${WIDTH}x${HEIGHT}`);
@@ -45,12 +44,11 @@ function captureElement(elem) {
             }
             if (childElems.length > 0)
                 elems.push(...childElems);
-            else if (!IGNORE_ELEMENT.includes(elem.tagName))
+            else if (isOverSize(elem))
                 elems.push(getQuerySelector(elem));
         }
     } else {
-        const { width, height } = getElementSize(elem);
-        if ((width > WIDTH && height > HEIGHT) && !IGNORE_ELEMENT.includes(elem.tagName)) {
+        if (isOverSize(elem)) {
             elems.push(getQuerySelector(elem));
         }
     }
@@ -63,14 +61,18 @@ function getElementSize(elem) {
     return { width, height };
 }
 
-function isAllChildElementSmallerThanSize(elem, size) {
+function isOverSize(elem) {
+    const { width, height } = getElementSize(elem);
+    if (height === 0) return false;
+    console.log(`width: ${width} height: ${height} ${elem.tagName}`);
+    return (width > WIDTH && height > HEIGHT && !IGNORE_ELEMENT.includes(elem.tagName));
+}
+
+function isAllChildElementSmallerThanSize(elem) {
     if (elem.children.length === 0) return true;
 
     for (const child of elem.children) {
-        const { width, height } = getElementSize(child);
-        if (height === 0) continue;
-        console.log(`width: ${width} height: ${height} ${child.tagName}`);
-        if ((width > WIDTH && height > HEIGHT) && !IGNORE_ELEMENT.includes(elem.tagName)) {
+        if (isOverSize(child)) {
             return false;
         }
     }
@@ -168,4 +170,51 @@ function getQuerySelector(elem) {
     loop(element);
     return str;
 }
-  
+
+
+/**
+ * 探索プログラム改善
+ */
+function getComponents() {
+  const sectionElements = [...getSectionElements()];
+  const headingParentElements = [...getHeadingParentElements()];
+
+  // return sectionElements.length > headingParentElements.length ? sectionElements : headingParentElements;
+  return sectionElements.length > headingParentElements.length ? sectionElements.map(getQuerySelector) : headingParentElements.map(getQuerySelector);
+}
+
+/**
+ * section 要素を取得する
+ */
+function getSectionElements() {
+    const sectionElements = document.querySelectorAll('section, article, aside, main');
+    const { clientWidth, clientHeight } = document.body;
+    const ret = [];
+    sectionElements.forEach((section) => {
+        const { width, height } = section.getBoundingClientRect();
+        // console.log(`width: ${width} height: ${height} ${section.tagName}`);
+        if (width < clientWidth && height < clientHeight && hasSpecifiedElement(section, 'section')) {
+            ret.push(section);
+        }
+    });
+    return sectionElements;
+}
+
+function hasSpecifiedElement(elem, tagName) {
+  const specifiedElements = elem.querySelectorAll(tagName);
+  return specifiedElements.length > 0;
+}
+
+function getHeadingParentElements() {
+  const headingElements = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+  const { clientWidth, clientHeight } = document.body;
+  const ret = [];
+  headingElements.forEach((heading) => {
+      const { width, height } = heading.getBoundingClientRect();
+      // console.log(`width: ${width} height: ${height} ${heading.tagName}`);
+      if (width < clientWidth && height < clientHeight) {
+          ret.push(heading.parentElement);
+      }
+  });
+  return ret;
+}
