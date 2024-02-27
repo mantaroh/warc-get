@@ -7,6 +7,17 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Activation, Conv2D, MaxPooling2D, Dropout, BatchNormalization, Flatten
 from tensorflow.keras.optimizers import Adam
 import matplotlib.pyplot as plt
+import pickle
+
+## Memory Revamp
+import tensorflow as tf
+from keras import backend as K
+config = tf.compat.v1.ConfigProto()
+#config.gpu_options.allow_growth = False
+config.gpu_options.per_process_gpu_memory_fraction = 0.5
+sess = tf.compat.v1.Session(config=config)
+#K.set_session(sess)
+tf.compat.v1.keras.backend.set_session(sess)
 
 cols = 128
 rows = 128
@@ -68,7 +79,9 @@ model.add(Dense(11, activation='softmax'))
 model.compile(loss='categorical_crossentropy',optimizer=Adam(lr=0.001),metrics=['accuracy'])
 model.summary()
 
-history=model.fit(X_train,Y_train,batch_size=128,epochs=300,validation_data=(X_valid,Y_valid))
+#history=model.fit(X_train,Y_train,batch_size=128,epochs=100,validation_data=(X_valid,Y_valid))
+#Memory Revamp (GPU)
+history=model.fit(X_train,Y_train,batch_size=10,epochs=100,validation_data=(X_valid,Y_valid))
 #学習結果の可視化
 plt.plot(history.history['accuracy'])
 plt.plot(history.history['val_accuracy'])
@@ -78,4 +91,6 @@ plt.xlabel('Epoch')
 plt.grid()
 plt.legend(['Train','Validation'],loc='upper left')
 plt.show()
-plt.savefig('result1.png')
+plt.savefig('result2.png')
+
+pickle.dump(model, open('model.pkl', 'wb'))
